@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Teste Socket.IO</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+  <button id="botao">Clique aqui</button>
+  <p>Contador: <span id="contador">0</span></p>
+
+  <script>
+    const socket = io('http://localhost:3000');
+
+    document.getElementById('botao').onclick = () => {
+      socket.emit('botaoClicado');
+    };
+
+    socket.on('contadorAtualizado', (valor) => {
+      document.getElementById('contador').textContent = valor;
+    });
+  </script>
+</body>
+</html>
