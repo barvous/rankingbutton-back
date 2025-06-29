@@ -1,9 +1,19 @@
 const express = require('express');
+const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
+
+// Cors para http
+app.use(cors({
+  origin: 'http://localhost:4200',   // ou '*' se quiser liberar para qualquer origem
+  methods: ['GET','POST'],           // métodos que você vai usar
+  allowedHeaders: ['Content-Type'],  // headers que você usa
+}));
+
+// Cors do websocket
 const io = new Server(server, {
   cors: {
     origin: '*',
@@ -14,9 +24,8 @@ const io = new Server(server, {
 let contador = 0;
 
 // Rota simples
-app.get('/', (req, res) => {
-    console.log(req);
-  res.send(`Contador atual: ${contador}`);
+app.get('/cliques', (req, res) => {
+  res.send(contador);
 });
 
 // Conexão socket
