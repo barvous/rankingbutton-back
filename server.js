@@ -10,6 +10,7 @@ const {
 } = require("./services/firebaseService");
 
 const LIMITE_DO_RANKING = 10;
+let lastRanking = [];
 const app = express();
 app.use(cors({ origin: "http://localhost:4200" })); // libera CORS pro seu Angular
 
@@ -68,15 +69,26 @@ io.on("connection", (socket) => {
 		}
 	});
 
-	// 4) Evento protegido: só quem tiver userId setado
 	socket.on("botaoClicado", async () => {
 		if (!socket.userId) return;
+		// incrementa e salva no Firestore
 		globalContador++;
 		io.emit("contadorAtualizado", globalContador);
+		await setUserClickCount(socket.userId, globalContador);
+
+		// 1) re-calcula Top 10
 		try {
-			await setUserClickCount(socket.userId, globalContador);
+			const novaLista = await getTopUsersRanking(10);
+			// 2) compara com a anterior para não emitir sempre
+			const mudou =
+				JSON.stringify(novaLista) !== JSON.stringify(lastRanking);
+			if (mudou) {
+				lastRanking = novaLista;
+				// 3) emite para TODOS os clientes (logados ou não)
+				io.emit("rankingAtualizado", novaLista);
+			}
 		} catch (err) {
-			console.error("Erro ao gravar totalCliques:", err);
+			console.error("Erro ao recalcular ranking:", err);
 		}
 	});
 
