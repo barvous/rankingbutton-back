@@ -9,7 +9,7 @@ const {
 	getTopUsersRanking,
 } = require("./services/firebaseService");
 
-const LIMITE_DO_RANKING = 10;
+let lastRanking = [];
 const app = express();
 app.use(cors({ origin: "http://localhost:4200" })); // libera CORS pro seu Angular
 
@@ -17,8 +17,6 @@ const server = http.createServer(app);
 const io = new Server(server, {
 	cors: { origin: "*" }, // para o Socket.IO
 });
-
-let contador = 0;
 
 io.on("connection", (socket) => {
 	// 1) Tenta extrair token, mas NUNCA rejeita a conexão
@@ -28,7 +26,6 @@ io.on("connection", (socket) => {
 		verifyIdToken(token)
 			.then((uid) => {
 				socket.userId = uid;
-				console.log("Usuário autenticado conectado:", uid);
 			})
 			.catch((err) => {
 				console.error("Falha ao autenticar socket:", err);
@@ -44,7 +41,6 @@ io.on("connection", (socket) => {
 	socket.on("listarRanking", async () => {
 		try {
 			const ranking = await getTopUsersRanking(10);
-			console.log("Ranking:", ranking);
 			socket.emit("rankingUsuarios", ranking);
 		} catch (err) {
 			console.error("Erro em listarRanking:", err);
@@ -68,15 +64,26 @@ io.on("connection", (socket) => {
 		}
 	});
 
-	// 4) Evento protegido: só quem tiver userId setado
 	socket.on("botaoClicado", async () => {
 		if (!socket.userId) return;
+		// incrementa e salva no Firestore
 		globalContador++;
 		io.emit("contadorAtualizado", globalContador);
+		await setUserClickCount(socket.userId, globalContador);
+
+		// 1) re-calcula Top 10
 		try {
-			await setUserClickCount(socket.userId, globalContador);
+			const novaLista = await getTopUsersRanking(10);
+			// 2) compara com a anterior para não emitir sempre
+			const mudou =
+				JSON.stringify(novaLista) !== JSON.stringify(lastRanking);
+			if (mudou) {
+				lastRanking = novaLista;
+				// 3) emite para TODOS os clientes (logados ou não)
+				io.emit("rankingAtualizado", novaLista);
+			}
 		} catch (err) {
-			console.error("Erro ao gravar totalCliques:", err);
+			console.error("Erro ao recalcular ranking:", err);
 		}
 	});
 
