@@ -1,16 +1,14 @@
+require("dotenv").config();
 const admin = require("firebase-admin");
-const path = require("path");
 
-// 1️⃣ Inicialização do Admin SDK
-const serviceAccount = require(path.resolve(
-	__dirname,
-	"../serviceAccountKey.json"
-));
+const saJson = Buffer.from(
+	process.env.FIREBASE_SERVICE_ACCOUNT_B64,
+	"base64"
+).toString("utf-8");
 
+const serviceAccount = JSON.parse(saJson);
 admin.initializeApp({
 	credential: admin.credential.cert(serviceAccount),
-	// Se você quiser usar o Firestore por padrão:
-	// nenhum databaseURL é necessário, mas pode configurar se quiser
 });
 
 // 2️⃣ Objeto do Firestore

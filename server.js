@@ -11,11 +11,14 @@ const {
 
 let lastRanking = [];
 const app = express();
-app.use(cors({ origin: "http://localhost:4200" })); // libera CORS pro seu Angular
+const frontendOrigin = process.env.FRONTEND_ORIGIN
+console.log("CORS liberado para:", frontendOrigin);
+
+app.use(cors({ origin: frontendOrigin })); // libera CORS pro seu Angular
 
 const server = http.createServer(app);
 const io = new Server(server, {
-	cors: { origin: "*" }, // para o Socket.IO
+	cors: { origin: frontendOrigin }, // para o Socket.IO
 });
 
 io.on("connection", (socket) => {
