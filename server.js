@@ -11,7 +11,10 @@ const {
 
 let lastRanking = [];
 const app = express();
-const frontendOrigin = process.env.FRONTEND_ORIGIN
+const frontendOrigin = process.env.FRONTEND_ORIGIN;
+
+const PORT = process.env.PORT || 3000;
+
 console.log("CORS liberado para:", frontendOrigin);
 
 app.use(cors({ origin: frontendOrigin })); // libera CORS pro seu Angular
@@ -95,4 +98,4 @@ io.on("connection", (socket) => {
 	});
 });
 
-server.listen(3000, () => console.log("Servidor rodando na porta 3000"));
+server.listen(PORT, () => console.log("Servidor rodando na porta 3000"));
