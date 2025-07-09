@@ -1,18 +1,6 @@
-require("dotenv").config();
-const admin = require("firebase-admin");
-
-const saJson = Buffer.from(
-	process.env.FIREBASE_SERVICE_ACCOUNT_B64,
-	"base64"
-).toString("utf-8");
-
-const serviceAccount = JSON.parse(saJson);
-admin.initializeApp({
-	credential: admin.credential.cert(serviceAccount),
-});
-
-// 2️⃣ Objeto do Firestore
+const admin = require('../firebaseAdminConfig');
 const db = admin.firestore();
+const COLECAO_USUARIO_FIRSTORE = "usuario";
 
 /**
  * Verifica o ID Token passado pelo cliente e retorna o UID.
@@ -32,31 +20,31 @@ async function verifyIdToken(idToken) {
  */
 function setUserClickCount(userId, totalCliques) {
 	return db
-		.collection("usuario")
+		.collection(COLECAO_USUARIO_FIRSTORE)
 		.doc(userId)
 		.set({ totalCliques }, { merge: true });
 }
 
 /**
- * Busca o totalCliques do usuário na coleção "usuarios".
+ * Busca o totalCliques do usuário na coleção "usuario".
  * @param {string} userId
  * @returns {Promise<number>}
  */
 async function getUserClickCount(userId) {
-	const doc = await db.collection("usuario").doc(userId).get();
+	const doc = await db.collection(COLECAO_USUARIO_FIRSTORE).doc(userId).get();
 	if (!doc.exists) return 0;
 	const data = doc.data();
 	return typeof data.totalCliques === "number" ? data.totalCliques : 0;
 }
 
 /**
- * Busca os top N usuários ordenados por totalCliques desc na coleção "usuarios"
+ * Busca os top N usuários ordenados por totalCliques desc na coleção "usuario"
  * @param {number} limit Número máximo de usuários a retornar
  * @returns {Promise<Array<{ userId: string, apelido?: string, totalCliques?: number, dataUltimoClique?: any }>>}
  */
 async function getTopUsersRanking(limit = 10) {
 	const snapshot = await db
-		.collection("usuario")
+		.collection(COLECAO_USUARIO_FIRSTORE)
 		.orderBy("totalCliques", "desc")
 		.limit(limit)
 		.get();

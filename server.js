@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
@@ -8,22 +10,60 @@ const {
 	getUserClickCount,
 	getTopUsersRanking,
 } = require("./services/firebaseService");
+const authService = require("./services/firebaseAuthenticationService");
 
-let lastRanking = [];
 const app = express();
-const frontendOrigin = process.env.FRONTEND_ORIGIN;
 
+// Constantes
 const PORT = process.env.PORT || 3000;
+const MAXIMO_USUARIOS_TOP_RANKING = 10;
 
-console.log("CORS liberado para:", frontendOrigin);
+//Configurando o serviço HTTP
+const frontendOrigin = process.env.FRONTEND_ORIGIN;
+app.use(cors({ origin: frontendOrigin }));
+app.use(express.json());
 
-app.use(cors({ origin: frontendOrigin })); // libera CORS pro seu Angular
+// 1- ROTAS DA API
 
-const server = http.createServer(app);
-const io = new Server(server, {
-	cors: { origin: frontendOrigin }, // para o Socket.IO
+/**
+ * Endpoint de criação de usuário Firebase Auth
+ * Recebe JSON: { email, password, displayName }
+ */
+app.post("/api/auth/signup", async (req, res) => {
+	// console.log("CHEGUEI")
+	const { email, password, displayName } = req.body;
+	if (!email || !password || !displayName) {
+		return res
+			.status(400)
+			.json({ error: "Email e senha são obrigatórios" });
+	}
+
+	try {
+		const userRecord = await authService.createUser({
+			email,
+			password,
+			displayName,
+		});
+		// pode retornar o objeto completo ou só os campos que quiser expor
+		res.status(201).json({
+			uid: userRecord.uid,
+			email: userRecord.email,
+			displayName: userRecord.displayName,
+		});
+	} catch (err) {
+		console.error("Erro ao criar usuário:", err);
+		res.status(400).json({ error: err.message });
+	}
 });
 
+// Criando o servidor http e configurando o websocket
+const server = http.createServer(app);
+const io = new Server(server, {
+	cors: { origin: frontendOrigin },
+});
+
+// 2- ROTAS DO WEBSOCKET
+let lastRanking = [];
 io.on("connection", (socket) => {
 	// 1) Tenta extrair token, mas NUNCA rejeita a conexão
 	const token = socket.handshake.auth?.token;
@@ -46,7 +86,9 @@ io.on("connection", (socket) => {
 	// 2) Evento público: qualquer um pode listar ranking
 	socket.on("listarRanking", async () => {
 		try {
-			const ranking = await getTopUsersRanking(10);
+			const ranking = await getTopUsersRanking(
+				MAXIMO_USUARIOS_TOP_RANKING
+			);
 			socket.emit("rankingUsuarios", ranking);
 		} catch (err) {
 			console.error("Erro em listarRanking:", err);
@@ -79,7 +121,9 @@ io.on("connection", (socket) => {
 
 		// 1) re-calcula Top 10
 		try {
-			const novaLista = await getTopUsersRanking(10);
+			const novaLista = await getTopUsersRanking(
+				MAXIMO_USUARIOS_TOP_RANKING
+			);
 			// 2) compara com a anterior para não emitir sempre
 			const mudou =
 				JSON.stringify(novaLista) !== JSON.stringify(lastRanking);
@@ -98,4 +142,4 @@ io.on("connection", (socket) => {
 	});
 });
 
-server.listen(PORT, () => console.log("Servidor rodando na porta 3000"));
+server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
